@@ -1,6 +1,6 @@
 # Validations & Preuves OSPF (TP 1.1 - 1.3)
 
-## 📍 Topologie PNetLab
+## Topologie PNetLab
 ![Topologie PNetLab OSPF](https://github.com/user-attachments/assets/0fca844d-1f34-403c-9909-192e8962f8b1)
 
 ---
