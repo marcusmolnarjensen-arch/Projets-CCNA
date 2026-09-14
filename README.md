@@ -1,6 +1,9 @@
 # Validations & Preuves OSPF (TP 1.1 - 1.3)
-mon pnetlab je vais pas mettre une photo par adressage ip que ce soit ospf routeur peu importe car c'est deja vu de l'année derniere 
-<img width="1857" height="926" alt="image" src="https://github.com/user-attachments/assets/0fca844d-1f34-403c-9909-192e8962f8b1" />
+
+## 📍 Topologie PNetLab
+![Topologie PNetLab OSPF](https://github.com/user-attachments/assets/0fca844d-1f34-403c-9909-192e8962f8b1)
+
+---
 
 ## 1. Voisinage OSPF (`show ip ospf neighbor`)
 
@@ -50,11 +53,14 @@ mon pnetlab je vais pas mettre une photo par adressage ip que ce soit ospf route
 
 ---
 
-## 5. Paquets Hello (`debug ip ospf hello` sur R1)
+## 5. Paquets Hello & Analyse Trame (`debug ip ospf hello` & Wireshark sur R1)
 
 ![Debug Hello OSPF](https://github.com/user-attachments/assets/8c5f1c8a-62fb-4436-aefb-cf15fed8d255)
-* Validation des paquets Keepalive et échanges Hello OSPF.<br>
-Wireshark 0/0:
-<img width="1118" height="622" alt="image" src="https://github.com/user-attachments/assets/82e821b6-bdbc-4054-93f1-c176cb311b38" />
-Wireshark 1/0:
-<img width="1122" height="621" alt="image" src="https://github.com/user-attachments/assets/e3cf0c5f-c005-45ef-9ef4-7e71cfb52d22" />
+* Validation des paquets Keepalive et échanges Hello OSPF.
+
+### Captures Wireshark
+* **Wireshark Fa0/0 (Lien R1-R2) :**
+![Wireshark Fa0/0](https://github.com/user-attachments/assets/82e821b6-bdbc-4054-93f1-c176cb311b38)
+
+* **Wireshark Fa1/0 (Lien R1-R3) :**
+![Wireshark Fa1/0](https://github.com/user-attachments/assets/e3cf0c5f-c005-45ef-9ef4-7e71cfb52d22)
