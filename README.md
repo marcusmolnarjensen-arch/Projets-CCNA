@@ -1,4 +1,4 @@
-# 🛠️ Validations & Preuves OSPF (TP 1.1 - 1.3)
+# Validations & Preuves OSPF (TP 1.1 - 1.3)
 
 ## 1. Voisinage OSPF (`show ip ospf neighbor`)
 
