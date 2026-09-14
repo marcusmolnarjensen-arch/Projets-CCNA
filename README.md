@@ -1,4 +1,6 @@
 # Validations & Preuves OSPF (TP 1.1 - 1.3)
+mon pnetlab
+<img width="1857" height="926" alt="image" src="https://github.com/user-attachments/assets/0fca844d-1f34-403c-9909-192e8962f8b1" />
 
 ## 1. Voisinage OSPF (`show ip ospf neighbor`)
 
