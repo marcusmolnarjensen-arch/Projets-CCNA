@@ -51,7 +51,8 @@
 ## 5. Paquets Hello (`debug ip ospf hello` sur R1)
 
 ![Debug Hello OSPF](https://github.com/user-attachments/assets/8c5f1c8a-62fb-4436-aefb-cf15fed8d255)
-* Validation des paquets Keepalive et échanges Hello OSPF.
+* Validation des paquets Keepalive et échanges Hello OSPF.<br>
 Wireshark 0/0:
 <img width="1118" height="622" alt="image" src="https://github.com/user-attachments/assets/82e821b6-bdbc-4054-93f1-c176cb311b38" />
-Wireshark 0/0:
+Wireshark 1/0:
+<img width="1122" height="621" alt="image" src="https://github.com/user-attachments/assets/e3cf0c5f-c005-45ef-9ef4-7e71cfb52d22" />
