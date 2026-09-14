@@ -94,3 +94,16 @@ Plaintext            OSPF Router with ID (1.1.1.1) (Process ID 1)
 Debug des paquets Keepalive (Hello)PlaintextR1# debug ip ospf hello
 Validation de l'émission/réception des paquets Keepalive sur 224.0.0.5 toutes les 10 secondes.PlaintextR1# undebug all
 Clôture du processus de debug.
+
+
+test R1 show ip ospf neighbor
+<img width="1047" height="181" alt="image" src="https://github.com/user-attachments/assets/b4106ad1-c485-4aeb-b50a-cf55c77d8a96" />
+2.2.2.2 et 3.3.3.3
+test R2 show ip ospf neighbor
+<img width="1047" height="181" alt="image" src="https://github.com/user-attachments/assets/ca25fc3b-75b1-41b8-ae2d-08c9c047c3ce" />
+1.1.1.1 et 3.3.3.3
+test R3 show ip ospf neighbor
+<img width="1007" height="175" alt="image" src="https://github.com/user-attachments/assets/9f4c4f11-5efe-416a-823a-51d82cebc206" />
+1.1.1.1 et 2.2.2.2
+
+
