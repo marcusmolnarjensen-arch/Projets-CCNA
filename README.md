@@ -1,74 +1,81 @@
-Documentation Technique — OSPFv2 (Modules 1 & 2)
-Topologie de Réseau
-Module 1 — Validation de la Connectivité et Comportement OSPF
-1. Adjacences et Voisinage (show ip ospf neighbor)
-Vérification des adjacences OSPF à l'état FULL sur l'ensemble des routeurs du domaine.
+# Module 1
 
-R1 :
+# Validations & Preuves OSPF (TP 1.1 - 1.3)
 
-Adjacences établies avec R2 (2.2.2.2) et R3 (3.3.3.3).
+## Topologie PNetLab
+![Topologie PNetLab OSPF](https://github.com/user-attachments/assets/0fca844d-1f34-403c-9909-192e8962f8b1)
 
-R2 :
+---
 
-Adjacences établies avec R1 (1.1.1.1) et R3 (3.3.3.3).
+## 1. Voisinage OSPF (`show ip ospf neighbor`)
 
-R3 :
+### R1
+![R1 show ip ospf neighbor](https://github.com/user-attachments/assets/b4106ad1-c485-4aeb-b50a-cf55c77d8a96)
+* Voisins 2.2.2.2 et 3.3.3.3 validés.
 
-Adjacences établies avec R1 (1.1.1.1) et R2 (2.2.2.2).
+### R2
+![R2 show ip ospf neighbor](https://github.com/user-attachments/assets/ca25fc3b-75b1-41b8-ae2d-08c9c047c3ce)
+* Voisins 1.1.1.1 et 3.3.3.3 validés.
 
-2. Coût des Interfaces (show ip ospf interface FastEthernet1/0 | include Cost)
-R1 :
+### R3
+![R3 show ip ospf neighbor](https://github.com/user-attachments/assets/9f4c4f11-5efe-416a-823a-51d82cebc206)
+* Voisins 1.1.1.1 et 2.2.2.2 validés.
 
-Coût ajusté à 100 en raison de la bande passante modifiée à 10 000 Kbit/s.
+---
 
-R2 :
+## 2. Métrique des Interfaces (`show ip ospf interface FastEthernet1/0 | include Cost`)
 
-Coût par défaut à 10 avec une bande passante FastEthernet (100 000 Kbit/s).
+### R1
+![R1 Cost](https://github.com/user-attachments/assets/d19cee6a-248a-4117-b28e-18bd5bc540e5)
+* Coût à 100 car le bandwidth est à 10000.
 
-R3 :
+### R2
+![R2 Cost](https://github.com/user-attachments/assets/aa109af9-9e8e-4421-881e-9b271a707270)
+* Coût à 10 car le bandwidth est à 100000 (par défaut).
 
-Coût par défaut à 10 avec une bande passante FastEthernet (100 000 Kbit/s).
+### R3
+![R3 Cost](https://github.com/user-attachments/assets/0f40e483-5d2b-47dc-a576-f844f7ec7e4d)
+* Coût à 10 car le bandwidth est à 100000 (par défaut).
 
-3. Reroutage Dynamique (traceroute 3.3.3.3 depuis R1)
-Validation du calcul SPF : le trafic depuis R1 transite par R2 (10.0.12.2) pour atteindre R3 au lieu d'emprunter le lien direct à coût élevé.
+---
 
-4. Inspection de la LSDB (show ip ospf database router sur R1)
-Base de données LSA Router (Partie 1) :
+## 3. Reroutage Dynamique (`traceroute 3.3.3.3` depuis R1)
 
-Base de données LSA Router (Partie 2) :
+![Traceroute R1 vers R3](https://github.com/user-attachments/assets/a820a170-f0f5-471e-ad77-be4b39d85c10)
+* Le flux passe bien par R2 (`10.0.12.2`) pour joindre R3.
 
-Base de données LSA Router (Partie 3) :
+---
 
-Base de données LSA Router (Partie 4) :
+## 4. Inspection LSDB (`show ip ospf database router` sur R1)
 
-5. Analyse Trame & Captures Wireshark
-Debug des paquets Hello (debug ip ospf hello) :
+![LSDB Part 1](https://github.com/user-attachments/assets/78969ec0-762f-4799-b98e-d4bf1065c13e)
+![LSDB Part 2](https://github.com/user-attachments/assets/b3717b48-f871-4e09-8adb-10f07d1eb1cf)
+![LSDB Part 3](https://github.com/user-attachments/assets/75c3d989-51f0-4729-b28e-53f712fdf9de)
+![LSDB Part 4](https://github.com/user-attachments/assets/1404c6da-aaab-4b5f-bdbf-de306c47cf1f)
 
-Wireshark Fa0/0 (Lien R1-R2) :
+---
 
-Wireshark Fa1/0 (Lien R1-R3) :
+## 5. Paquets Hello & Analyse Trame (`debug ip ospf hello` & Wireshark sur R1)
 
-Module 2 — Optimisation & Sécurisation OSPFv2
-1. Élection DR/BDR & Priorités (show ip ospf neighbor)
-Validation de la hiérarchie DR/BDR sur le segment multi-accès :
+![Debug Hello OSPF](https://github.com/user-attachments/assets/8c5f1c8a-62fb-4436-aefb-cf15fed8d255)
+* Validation des paquets Keepalive et échanges Hello OSPF.
 
-R1 (1.1.1.1) : Élu DR (Priorité OSPF 255).
+### Captures Wireshark
+* **Wireshark Fa0/0 (Lien R1-R2) :**
+![Wireshark Fa0/0](https://github.com/user-attachments/assets/82e821b6-bdbc-4054-93f1-c176cb311b38)
 
-R2 (2.2.2.2) : Élu BDR (Priorité OSPF 100).
+* **Wireshark Fa1/0 (Lien R1-R3) :**
+![Wireshark Fa1/0](https://github.com/user-attachments/assets/e3cf0c5f-c005-45ef-9ef4-7e71cfb52d22)
 
-R3 (3.3.3.3) : Rôle DROTHER (Priorité OSPF 0).
+# Module 2
 
-2. Interfaces Passives — TP 2.1 (show ip protocols)
-Validation du paramètre passive-interface FastEthernet1/0 sur R1.
+DR et BDR (puis Drother) avec priorités
+<img width="887" height="282" alt="image" src="https://github.com/user-attachments/assets/311ecd10-d795-44dc-bf80-25f8b9d2da3a" />
 
-Blocage de l'émission/réception des paquets Hello vers le LAN utilisateur, interdisant la formation d'adjacence non sollicitée tout en garantissant la propagation du sous-réseau dans la LSDB.
 
-3. Propagation de Route par Défaut — TP 2.2 (show ip route ospf)
-Injection centralisée de la route statique 0.0.0.0/0 depuis R1 via la commande default-information originate always.
+passives, route par défaut OSPF et MD5
+R1 
+<img width="460" height="132" alt="image" src="https://github.com/user-attachments/assets/b2049115-ee11-41de-884f-75f378211027" />
+<img width="953" height="750" alt="image" src="https://github.com/user-attachments/assets/1a804f06-318a-442c-9d25-6902ce3d027b" />
+<img width="892" height="610" alt="image" src="https://github.com/user-attachments/assets/1d656fd2-fa77-4605-8131-632a8adeb45c" />
 
-Confirmation de la réception sur R2 et R3 sous la forme d'une route externe O*E2 avec mise à jour automatique du Gateway of last resort vers 10.0.0.1.
-
-4. Authentification MD5 du Backbone — TP 2.3 (show ip ospf interface)
-Durcissement de la liaison backbone FastEthernet0/0 via la clé MD5 CCNA-Satom2026!.
-
-Validation par le statut Message digest authentication enabled et maintien des adjacences de voisinage à l'état FULL.
