@@ -68,3 +68,15 @@
 ![Wireshark Fa1/0](https://github.com/user-attachments/assets/e3cf0c5f-c005-45ef-9ef4-7e71cfb52d22)
 
 # Module 2
+
+DR et BDR (puis Drother) avec priorités
+<img width="887" height="282" alt="image" src="https://github.com/user-attachments/assets/311ecd10-d795-44dc-bf80-25f8b9d2da3a" />
+
+
+passives, route par défaut OSPF et MD5
+R1 
+<img width="460" height="132" alt="image" src="https://github.com/user-attachments/assets/b2049115-ee11-41de-884f-75f378211027" />
+<img width="953" height="750" alt="image" src="https://github.com/user-attachments/assets/1a804f06-318a-442c-9d25-6902ce3d027b" />
+<img width="892" height="610" alt="image" src="https://github.com/user-attachments/assets/1d656fd2-fa77-4605-8131-632a8adeb45c" />
+
+
