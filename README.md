@@ -79,3 +79,157 @@ R1 
 <img width="953" height="750" alt="image" src="https://github.com/user-attachments/assets/1a804f06-318a-442c-9d25-6902ce3d027b" />
 <img width="892" height="610" alt="image" src="https://github.com/user-attachments/assets/1d656fd2-fa77-4605-8131-632a8adeb45c" />
 
+
+PASSAGE SUR PNETLAB EN LOCAL C'EST PLUS OU MOINS LA MEME CHOSE 
+donc pas d'image avant module 4 (c'etait surtout du copier coller de pnetlab hebergé)
+
+Documentation Technique — Lab CCNA OSPF & Hardening (R1, R2, R3, SW1)
+
+1. Architecture et Plan d'Adressage
+Topologie : 3 Routeurs Cisco c7200 interconnectés via un switch Catalyst (module NM-16ESW).
+
+Sous-réseau Backbone : 10.0.0.0/24
+
+Loopbacks de management / OSPF :
+
+R1 : 1.1.1.1/32 (Priorité OSPF : 255 - DR)
+
+R2 : 2.2.2.2/32 (Priorité OSPF : 100 - BDR)
+
+R3 : 3.3.3.3/32 (Priorité OSPF : 1 - DROTHER)
+
+2. Configuration des Routeurs (R1, R2, R3)
+R1 (Primary DR)
+Cisco CLI
+hostname R1
+ip domain-name satom.local
+username SATOMIT privilege 15 secret admin123
+enable secret admin123
+
+interface Loopback0
+ ip address 1.1.1.1 255.255.255.255
+
+interface FastEthernet0/0
+ ip address 10.0.0.1 255.255.255.0
+ ip ospf priority 255
+ ip ospf message-digest-key 1 md5 CCNA-Satom2026!
+ ip ospf authentication message-digest
+ duplex full
+ no shutdown
+
+router ospf 1
+ router-id 1.1.1.1
+ network 10.0.0.0 0.0.0.255 area 0
+ network 1.1.1.0 0.0.0.255 area 0
+
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 4
+ transport input ssh
+ login local
+ exec-timeout 5 0
+R2 (BDR)
+Cisco CLI
+hostname R2
+ip domain-name satom.local
+username SATOMIT privilege 15 secret admin123
+enable secret admin123
+
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.255
+
+interface FastEthernet0/0
+ ip address 10.0.0.2 255.255.255.0
+ ip ospf priority 100
+ ip ospf message-digest-key 1 md5 CCNA-Satom2026!
+ ip ospf authentication message-digest
+ duplex full
+ no shutdown
+
+router ospf 1
+ router-id 2.2.2.2
+ network 10.0.0.0 0.0.0.255 area 0
+ network 2.2.2.0 0.0.0.255 area 0
+
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 4
+ transport input ssh
+ login local
+ exec-timeout 5 0
+R3 (DROTHER)
+Cisco CLI
+hostname R3
+ip domain-name satom.local
+username SATOMIT privilege 15 secret admin123
+enable secret admin123
+
+interface Loopback0
+ ip address 3.3.3.3 255.255.255.255
+
+interface FastEthernet0/0
+ ip address 10.0.0.3 255.255.255.0
+ ip ospf priority 1
+ ip ospf message-digest-key 1 md5 CCNA-Satom2026!
+ ip ospf authentication message-digest
+ duplex full
+ no shutdown
+
+router ospf 1
+ router-id 3.3.3.3
+ network 10.0.0.0 0.0.0.255 area 0
+ network 3.3.3.3 0.0.0.0 area 0
+
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 4
+ transport input ssh
+ login local
+ exec-timeout 5 0
+3. Configuration du Switch (SW1)
+Cisco CLI
+hostname SW1
+ip domain-name satom.local
+enable secret admin123
+
+interface range FastEthernet1/0 - 15
+ switchport mode access
+ speed 100
+ duplex full
+ no shutdown
+
+line vty 0 4
+ password admin123
+ login
+4. Preuves de Tests et Vérifications (Rapport)
+État des Voisins OSPF
+Cisco CLI
+R1# show ip ospf neighbor
+
+Neighbor ID     Pri   State           Dead Time   Address         Interface
+2.2.2.2         100   FULL/BDR        00:00:18    10.0.0.2        FastEthernet0/0
+3.3.3.3           1   FULL/DROTHER    00:00:16    10.0.0.3        FastEthernet0/0
+Table de Routage OSPF
+Cisco CLI
+R1# show ip route ospf
+
+      2.0.0.0/32 is subnetted, 1 subnets
+O       2.2.2.2 [110/2] via 10.0.0.2, 00:10:20, FastEthernet0/0
+      3.0.0.0/32 is subnetted, 1 subnets
+O       3.3.3.3 [110/2] via 10.0.0.3, 00:10:30, FastEthernet0/0
+Validation de la Connectivité (Ping Étendu)
+Cisco CLI
+R3# ping 1.1.1.1 source loopback0
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 1.1.1.1, timeout is 2 seconds:
+Packet sent with a source address of 3.3.3.3
+!!!!!
+Success rate is 100 percent (5/5), round-trip min/avg/max = 16/20/24 ms
+Vérification du Service SSHv2
+Cisco CLI
+R1# show ip ssh
+SSH Enabled - version 2.0
+Authentication timeout: 120 secs; Authentication retries: 3
