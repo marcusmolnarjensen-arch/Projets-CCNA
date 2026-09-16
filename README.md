@@ -233,3 +233,4 @@ Cisco CLI
 R1# show ip ssh
 SSH Enabled - version 2.0
 Authentication timeout: 120 secs; Authentication retries: 3
+pour le module 3.2 et 3.3 je me suis retrouvé dans une impasse a cause du routeur donc j'ai supprime le 3745 et j'ai mis un vrai switch
