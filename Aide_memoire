@@ -1,0 +1,398 @@
+🛠️ Aide-Mémoire CCNA — OSPF, Sécurité, ACL & NAT (Modules 1 à 6)
+Cisco IOS CCNA Lab
+
+Topologie de référence : R1 (DR) — R2 (BDR) — R3 (DROTHER) — SW1 — VPC, tous en 10.0.0.0/24 (backbone), avec Fa1/0 sur R1 en 203.0.113.1/24 (outside/NAT).
+
+📋 PLAN D'ADRESSAGE COMPLET
+R1
+
+Loopback0        1.1.1.1/32         (255.255.255.255)    Rôle: Router ID
+FastEthernet0/0  10.0.0.1/24        (255.255.255.0)       Rôle: Backbone (inside NAT)
+FastEthernet1/0  203.0.113.1/24     (255.255.255.0)       Rôle: Outside NAT / Internet
+R2
+
+Loopback0        2.2.2.2/32         (255.255.255.255)    Rôle: Router ID
+FastEthernet0/0  10.0.0.2/24        (255.255.255.0)       Rôle: Backbone
+R3
+
+Loopback0        3.3.3.3/32         (255.255.255.255)    Rôle: Router ID
+FastEthernet0/0  10.0.0.3/24        (255.255.255.0)       Rôle: Backbone
+SW1
+
+(aucune IP configurée — switch L2 pur, pas d'interface VLAN 1 IP)
+VPC
+
+eth0             10.0.0.10/24       (255.255.255.0)       Rôle: Poste de test
+Wildcard masks OSPF
+10.0.0.0/24      255.255.255.0      Wildcard: 0.0.0.255
+1.1.1.1/32       255.255.255.255    Wildcard: 0.0.0.0
+2.2.2.2/32       255.255.255.255    Wildcard: 0.0.0.0
+3.3.3.3/32       255.255.255.255    Wildcard: 0.0.0.0
+Wildcard masks ACL
+192.168.1.10     host               Wildcard: 0.0.0.0     (ADMIN-ONLY)
+192.168.0.0/16   255.255.0.0        Wildcard: 0.0.255.255  (TOUT-INTERNE)
+192.168.99.0/24  255.255.255.0      Wildcard: 0.0.0.255    (INVITES-WEB-ONLY)
+NAT
+10.0.0.50        →  203.0.113.10    Statique (serveur web)
+192.168.0.0/16   →  203.0.113.1     Dynamique PAT/overload (via TOUT-INTERNE)
+📌 MODULE 1 — OSPF de base
+Concept
+OSPF (Open Shortest Path First) est un protocole de routage à état de liens. Chaque routeur construit une carte complète du réseau (LSDB) et calcule lui-même le meilleur chemin via l'algorithme SPF (Dijkstra).
+
+Commandes de configuration
+Commande	Rôle
+interface Loopback0 puis ip address X.X.X.X 255.255.255.255	Crée une interface virtuelle toujours active, utilisée comme identité stable du routeur (Router ID)
+router ospf 1	Active le processus OSPF numéro 1 (identifiant local, n'a pas besoin d'être identique entre routeurs)
+router-id X.X.X.X	Force explicitement le Router ID plutôt que de laisser OSPF le déduire automatiquement
+network X.X.X.X W.W.W.W area 0	Déclare quelles interfaces (dont l'IP appartient à ce réseau/wildcard) participent à OSPF dans la zone 0
+auto-cost reference-bandwidth 1000	Redéfinit la bande passante de référence (en Mbps) utilisée dans le calcul du coût — indispensable sur des liens ≥100 Mbps sinon tous les coûts se valent à 1
+duplex full	Force le mode full-duplex pour éviter les pertes de paquets liées à un mismatch avec le port en face
+Commandes de vérification
+Commande	Ce qu'elle montre
+show ip interface brief	Liste toutes les interfaces avec leur IP et leur statut up/down
+show ip ospf neighbor	Affiche les voisins OSPF et leur état d'adjacence (Down → Init → 2-Way → ExStart → Exchange → Loading → Full)
+show ip route ospf	Affiche uniquement les routes apprises via OSPF (préfixées par O)
+show ip protocols	Résumé complet du processus OSPF : Router ID, réseaux annoncés, distance administrative
+✅ Résultat obtenu (validé)
+R1#show ip ospf neighbor
+Neighbor ID     Pri   State           Dead Time   Address         Interface
+2.2.2.2         100   FULL/BDR        00:00:32    10.0.0.2        FastEthernet0/0
+3.3.3.3           1   FULL/DROTHER    00:00:39    10.0.0.3        FastEthernet0/0
+📌 MODULE 2 — Élection DR/BDR & priorités
+Concept
+Sur un réseau multi-accès (switch partagé), OSPF élit un DR (Designated Router) et un BDR (Backup Designated Router) pour éviter que chaque routeur forme une adjacence avec tous les autres (ce qui exploserait le nombre de paquets échangés).
+
+Commandes de configuration
+Commande	Rôle
+ip ospf priority <0-255>	Définit la priorité OSPF de l'interface (défaut = 1). La plus haute gagne l'élection DR
+ip ospf priority 0	Exclut définitivement le routeur de l'élection — il reste toujours DROTHER
+ip ospf message-digest-key 1 md5 <clé>	Définit la clé MD5 utilisée pour signer les paquets OSPF sortants sur cette interface
+ip ospf authentication message-digest	Active l'authentification MD5 (type 2) sur l'interface
+clear ip ospf process	Force la réinitialisation du processus OSPF pour relancer une élection (l'élection DR/BDR n'est PAS préemptive — un routeur avec une meilleure priorité qui arrive après coup ne vole pas le rôle sans ce reset)
+Commandes de vérification
+Commande	Ce qu'elle montre
+show ip ospf neighbor	Affiche le rôle de chaque voisin : FULL/DR, FULL/BDR, FULL/DROTHER
+show ip ospf interface FastEthernet0/0	Détail complet : Designated Router, Backup DR, timers Hello/Dead, statut de l'authentification MD5
+✅ Résultat obtenu (validé)
+R2#show ip ospf interface FastEthernet0/0
+  State BDR, Priority 100
+  Designated Router (ID) 1.1.1.1, Interface address 10.0.0.1
+  Backup Designated router (ID) 2.2.2.2, Interface address 10.0.0.2
+  Message digest authentication enabled
+Priorités appliquées : R1 = 255 (DR) · R2 = 100 (BDR) · R3 = 1 (DROTHER)
+
+📌 MODULE 3 — Sécurité réseau (AAA/SSH, Port Security, DHCP Snooping)
+Concept
+La sécurité réseau se construit en couches : accès administratif (qui peut se connecter au routeur), couche 2 (quels appareils peuvent se brancher physiquement), et services critiques (qui peut distribuer des IP).
+
+3.1 — SSH & comptes locaux (AAA)
+Commande	Rôle
+ip domain-name satom.local	Requis pour générer une clé RSA (utilisée dans le nom de la clé)
+username SATOMIT privilege 15 secret admin123	Crée un compte local nominatif avec accès privilégié complet (niveau 15), mot de passe chiffré fort (secret > password)
+crypto key generate rsa modulus 2048	Génère la paire de clés RSA nécessaire au chiffrement SSH (2048 bits = sécurité recommandée)
+ip ssh version 2	Force SSHv2 (v1 obsolète et vulnérable)
+line vty 0 4 puis transport input ssh	Autorise uniquement SSH sur les lignes vty (Telnet explicitement exclu)
+login local	Authentification via la base de comptes locaux plutôt qu'un simple mot de passe de ligne
+exec-timeout 5 0	Déconnecte automatiquement une session inactive après 5 minutes
+access-class ADMIN-ONLY in	Restreint QUI a le droit de tenter une connexion sur les vty, en amont de l'authentification
+3.2 — Port Security (protection L2)
+Commande	Rôle
+switchport mode access	Prérequis obligatoire : port security ne s'active que sur un port en mode access
+switchport port-security	Active la fonctionnalité de sécurité de port
+switchport port-security maximum 1	Limite à 1 le nombre d'adresses MAC autorisées simultanément sur le port
+switchport port-security mac-address sticky	Apprend dynamiquement la première MAC vue et l'ajoute à la config courante (persistant après write memory)
+switchport port-security violation shutdown	En cas de violation (2ᵉ MAC détectée), coupe totalement le port (err-disabled) — nécessite intervention manuelle
+shutdown puis no shutdown	Relève un port passé en err-disabled suite à une violation
+⚠️ Piège rencontré en lab : une MAC apprise en sticky reste écrite dans la config même après reboot, tant qu'elle n'est pas explicitement supprimée. En rebranchant un nouvel appareil sur un port qui a déjà une vieille MAC sticky, la nouvelle MAC déclenche une violation immédiate. Solution : no switchport port-security mac-address sticky <ancienne MAC>, ou en dernier recours write erase + reload (en répondant no à la sauvegarde !).
+
+3.3 — DHCP Snooping
+Commande	Rôle
+ip dhcp snooping	Active globalement l'inspection DHCP sur le switch
+ip dhcp snooping vlan 1	Restreint l'inspection au(x) VLAN(s) concerné(s)
+ip dhcp snooping trust	Marque le port relié au serveur/routeur légitime comme "de confiance" — seul ce port peut relayer des réponses DHCP (OFFER/ACK)
+ip dhcp snooping limit rate 10	Limite le nombre de paquets DHCP/seconde sur les ports non fiables, pour contrer un flood
+Commandes de vérification
+Commande	Ce qu'elle montre
+show ip ssh	Confirme SSH Enabled - version 2.0
+show port-security interface <port>	Statut (Secure-up/Secure-shutdown), MAC apprise, compteur de violations
+show ip dhcp snooping	Liste des ports trusted/untrusted et leur rate limit
+show mac address-table	Table d'apprentissage MAC par port/VLAN
+show interfaces status	Statut physique (connected/err-disabled), duplex, vitesse de chaque port
+✅ Résultats obtenus (validés)
+SW1#show port-security interface Ethernet0/0
+Port Status                : Secure-up
+Sticky MAC Addresses       : 1
+Last Source Address:Vlan   : 0050.7966.6808:1
+
+SW1#show ip dhcp snooping
+Ethernet0/1    yes    (trusted, vers R1)
+Ethernet0/2    no
+Ethernet0/3    no
+
+R2#ssh -l SATOMIT 10.0.0.1
+% Connection refused by remote host   ← preuve que ADMIN-ONLY bloque bien R2 (10.0.0.2 ≠ 192.168.1.10)
+📌 MODULE 4 — Concepts ACL (théorique)
+Concept
+Module conceptuel : raisonnement sur les wildcard masks, l'ordre d'évaluation et le placement des ACL, avant la configuration réelle du Module 5.
+
+Calcul du wildcard mask
+Le wildcard mask est l'inverse binaire du masque de sous-réseau : 255.255.255.255 − masque = wildcard.
+
+Cible	Masque	Wildcard	Mot-clé
+192.168.10.0/24	255.255.255.0	0.0.0.255	—
+192.168.20.0/26	255.255.255.192	0.0.0.63	—
+10.0.0.0/16	255.255.0.0	0.0.255.255	—
+Hôte unique	255.255.255.255	0.0.0.0	host <ip>
+Toute adresse	—	255.255.255.255	any
+Règle d'or à retenir
+Toute ACL Cisco se termine par un deny any implicite, invisible dans la configuration. Une ACL avec une seule ligne deny sans permit bloque donc TOUT le reste du trafic — pas seulement la cible visée.
+
+Placement (bonne pratique)
+ACL standard (filtre sur la source uniquement) → à placer près de la destination
+ACL étendue (filtre source + destination + protocole/port) → à placer près de la source, pour économiser la bande passante inutile sur le reste du réseau
+(Module purement conceptuel — pas de commande CLI associée, la preuve est le raisonnement écrit)
+
+📌 MODULE 5 — Configuration des ACL IPv4
+Commandes de configuration
+Commande	Rôle
+ip access-list standard NOM	Crée une ACL standard nommée (numéros 1-99/1300-1999 réservés aux numérotées) — plus lisible qu'un numéro, éditable ligne par ligne
+ip access-list extended NOM	Crée une ACL étendue nommée (numéros 100-199 réservés aux numérotées) — filtre source, destination, protocole et port
+permit host 192.168.1.10	Autorise uniquement cette IP exacte
+permit tcp <source> <wildcard> any eq 80	Autorise le trafic TCP sortant sur le port 80 (HTTP) depuis la source spécifiée
+permit udp <source> <wildcard> any eq 53	Autorise les requêtes DNS (UDP/53) — indispensable sinon la résolution de noms échoue
+deny ip <source> <wildcard> any	Bloque explicitement tout protocole IP depuis cette source (ligne de lisibilité, le deny implicite suffirait techniquement)
+access-class NOM in	Applique l'ACL aux tentatives de connexion entrantes sur les lignes vty (accès administratif)
+ip access-group NOM in/out	Applique l'ACL sur une interface physique, en entrée ou en sortie du trafic de données
+⚠️ access-class ≠ access-group
+access-class : uniquement sur les lignes de gestion (vty, console, aux) — filtre qui peut administrer l'équipement
+access-group : sur une interface réseau — filtre le trafic de données qui transite à travers le routeur
+Commandes de vérification
+Commande	Ce qu'elle montre
+show access-lists	Liste toutes les ACL avec leurs lignes et compteurs de correspondances
+show access-lists NOM	Détail d'une ACL précise, avec (x matches) par ligne — outil de diagnostic n°1 pour une ACL "qui ne fait rien" (compteur à 0 = le trafic ne passe jamais par cette ligne)
+show ip interface <int> | include access list	Confirme sur quelle interface et dans quel sens (in/out) une ACL est réellement active
+🩺 Méthodologie de dépannage
+Vérifier l'ordre des lignes (traitement séquentiel, arrêt à la première correspondance — une ligne deny any placée trop tôt bloque tout le reste)
+Vérifier le sens d'application (in vs out) et l'interface (le trafic doit physiquement traverser cette interface dans ce sens)
+Vérifier les compteurs de show access-lists pour confirmer si le trafic atteint bien la règle
+✅ Résultat obtenu (validé)
+R1#show access-lists
+Standard IP access list ADMIN-ONLY
+    10 permit 192.168.1.10
+Standard IP access list TOUT-INTERNE
+    10 permit 192.168.0.0, wildcard bits 0.0.255.255
+Extended IP access list INVITES-WEB-ONLY
+    10 permit tcp 192.168.99.0 0.0.0.255 any eq www
+    20 permit tcp 192.168.99.0 0.0.0.255 any eq 443
+    30 permit udp 192.168.99.0 0.0.0.255 any eq domain
+    40 deny ip 192.168.99.0 0.0.0.255 any
+
+R2#ssh -l SATOMIT 10.0.0.1
+% Connection refused by remote host   ← ADMIN-ONLY validée en conditions réelles
+📌 MODULE 6 — NAT pour IPv4
+Concept & terminologie
+Terme	Définition
+Inside local	Adresse IP privée réelle de l'hôte sur le réseau interne
+Inside global	Adresse IP publique attribuée par le FAI, visible depuis l'extérieur
+Outside local/global	Équivalents côté externe (généralement identiques dans un scénario simple)
+Commandes de configuration
+Commande	Rôle
+ip nat inside	Marque l'interface comme faisant face au réseau privé — indispensable pour que le routeur sache quel sens traduire
+ip nat outside	Marque l'interface comme faisant face au réseau public
+ip nat inside source static <local> <global>	NAT statique : correspondance fixe et permanente 1-pour-1, utilisée pour publier un serveur accessible depuis l'extérieur
+ip nat pool NOM <début> <fin> netmask <masque>	Déclare une plage d'adresses publiques pour la traduction dynamique
+ip nat inside source list <ACL> pool NOM	NAT dynamique : associe les hôtes matchant l'ACL à une IP piochée dans le pool, le temps de la session
+ip nat inside source list <ACL> interface <int> overload	PAT (NAT Overload) : traduit toutes les sessions vers l'IP de l'interface, en distinguant chaque flux par son numéro de port — solution standard pour un accès Internet partagé avec une seule IP publique
+Commandes de vérification
+Commande	Ce qu'elle montre
+show ip nat translations	Table des traductions actives (statiques et dynamiques)
+show ip nat statistics	Interfaces inside/outside configurées, compteur de Hits/Misses, mappings dynamiques actifs
+✅ Résultat obtenu (NAT statique validé)
+R1#show ip nat translations
+Pro Inside global      Inside local       Outside local      Outside global
+--- 203.0.113.10       10.0.0.50          ---                ---
+🩺 Point de vigilance rencontré
+Un ping sortant échoue avec Destination host unreachable émis par R1 lui-même si aucune route par défaut n'existe vers l'extérieur — le NAT overload ne se déclenche que si le paquet arrive effectivement à être routé vers l'interface outside. Correctif :
+
+ip route 0.0.0.0 0.0.0.0 FastEthernet1/0
+🎯 Synthèse générale — Les réflexes à avoir
+Toujours vérifier show ip interface brief en premier réflexe de dépannage — une interface down ou sans IP explique 90% des blocages
+Toujours vérifier le duplex des deux côtés d'un lien (show interfaces status / %CDP-4-DUPLEX_MISMATCH dans les logs) — un mismatch peut bloquer silencieusement le trafic
+Une MAC en sticky persiste après reboot tant qu'elle n'est pas explicitement retirée — piège classique en lab quand on change souvent d'appareil sur un même port
+access-class (vty) ≠ access-group (interface) — ne jamais confondre
+Le compteur matches de show access-lists est le premier réflexe de dépannage pour une ACL qui "ne fait rien"
+Une ACL se termine toujours par un deny any implicite — ne jamais l'oublier dans le raisonnement
+L'élection DR/BDR n'est pas préemptive : clear ip ospf process est nécessaire pour appliquer un changement de priorité sur une adjacence déjà établie
+🧩 ANNEXE — Refaire ce lab avec N routeurs / N switchs
+Cette section est autoportante : tu n'as besoin de rien d'autre que ce qui suit pour reconstruire le lab à n'importe quelle échelle (3 routeurs et 1 switch, ou 6 routeurs et 3 switchs, peu importe).
+
+1. Schéma d'adressage extensible (à ne JAMAIS improviser)
+Fixe ce schéma avant de toucher à la moindre interface — c'est ce qui évite 90% des galères de câblage/IP qu'on a eues.
+
+Router ID (Loopback0)  →  N.N.N.N/32        où N = numéro du routeur (R1→1.1.1.1, R2→2.2.2.2, R4→4.4.4.4...)
+Backbone (réseau OSPF) →  10.0.<zone>.0/24  où <zone> = numéro du segment (10.0.0.0/24 pour la zone principale,
+                                              10.0.1.0/24 pour un 2e switch/segment, etc.)
+Outside/NAT            →  203.0.113.<N>/24  où N = incrémente pour chaque routeur ayant un accès "Internet"
+Exemple avec 5 routeurs + 2 switchs :
+
+R1  Loopback0  1.1.1.1/32     Fa0/0  10.0.0.1/24  (SW1)   Fa1/0  203.0.113.1/24 (outside)
+R2  Loopback0  2.2.2.2/32     Fa0/0  10.0.0.2/24  (SW1)
+R3  Loopback0  3.3.3.3/32     Fa0/0  10.0.0.3/24  (SW1)
+R4  Loopback0  4.4.4.4/32     Fa0/0  10.0.1.4/24  (SW2)
+R5  Loopback0  5.5.5.5/32     Fa0/0  10.0.1.5/24  (SW2)
+→ Si SW1 et SW2 sont reliés entre eux (trunk ou juste un lien routé entre R1/R4 par ex.), pense à ajouter ce lien dans network OSPF côté area 0 pour que les deux segments se voient.
+
+2. Répartition des priorités OSPF (peu importe le nombre de routeurs)
+Règle simple : 1 seul DR, 1 seul BDR, tout le reste en DROTHER (priorité 0 ou 1).
+
+1er routeur (futur DR)   → ip ospf priority 255
+2e routeur (futur BDR)   → ip ospf priority 100
+Tous les autres          → ip ospf priority 0   (exclu de l'élection, toujours DROTHER)
+⚠️ Ne mets jamais deux routeurs à la même priorité élevée sans le vouloir — ça complique l'élection pour rien.
+
+3. Template générique ROUTEUR (copie-colle et remplace les <...>)
+enable
+configure terminal
+no ip domain-lookup
+hostname R<N>
+ip domain-name satom.local
+username SATOMIT privilege 15 secret admin123
+enable secret admin123
+
+interface Loopback0
+ ip address <N>.<N>.<N>.<N> 255.255.255.255
+ exit
+
+interface FastEthernet0/0
+ ip address 10.0.<ZONE>.<N> 255.255.255.0
+ ip ospf priority <PRIORITE>
+ ip ospf message-digest-key 1 md5 CCNA-Satom2026!
+ ip ospf authentication message-digest
+ duplex full
+ no shutdown
+ exit
+
+router ospf 1
+ router-id <N>.<N>.<N>.<N>
+ auto-cost reference-bandwidth 1000
+ network 10.0.<ZONE>.0 0.0.0.255 area 0
+ network <N>.<N>.<N>.<N> 0.0.0.0 area 0
+ exit
+
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 5 0
+ exit
+
+end
+write memory
+Uniquement sur le routeur "sortie Internet" (celui avec une 2e carte réseau), ajoute en plus :
+
+enable
+configure terminal
+interface FastEthernet1/0
+ ip address 203.0.113.<N> 255.255.255.0
+ duplex full
+ ip nat outside
+ ip access-group INVITES-WEB-ONLY in
+ no shutdown
+ exit
+
+interface FastEthernet0/0
+ ip nat inside
+ exit
+
+ip route 0.0.0.0 0.0.0.0 FastEthernet1/0
+
+ip access-list standard ADMIN-ONLY
+ permit host 192.168.1.10
+ exit
+
+ip access-list extended INVITES-WEB-ONLY
+ permit tcp 192.168.99.0 0.0.0.255 any eq 80
+ permit tcp 192.168.99.0 0.0.0.255 any eq 443
+ permit udp 192.168.99.0 0.0.0.255 any eq 53
+ deny ip 192.168.99.0 0.0.0.255 any
+ exit
+
+ip access-list standard TOUT-INTERNE
+ permit 192.168.0.0 0.0.255.255
+ exit
+
+line vty 0 4
+ access-class ADMIN-ONLY in
+ exit
+
+ip nat inside source static 10.0.0.50 203.0.113.10
+ip nat inside source list TOUT-INTERNE interface FastEthernet1/0 overload
+
+end
+write memory
+4. Template générique SWITCH (copie-colle, adapte les ports selon le modèle)
+⚠️ Vérifie d'abord le nom exact des ports avec show ip interface brief avant de coller quoi que ce soit — Ethernet0/x (IOL L2), GigabitEthernet0/x (vIOS), FastEthernet0/x (Catalyst physique) ne sont jamais interchangeables.
+
+⚠️ Utilise un vrai switch L2 (Cisco vIOS Switch ou Cisco IOL L2) — jamais un routeur avec module NM-16ESW, il ne supporte ni le port-security ni le DHCP snooping en CLI.
+
+enable
+configure terminal
+no ip domain-lookup
+hostname SW<N>
+ip domain-name satom.local
+username SATOMIT privilege 15 secret admin123
+enable secret admin123
+crypto key generate rsa modulus 2048
+ip ssh version 2
+
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 5 0
+ exit
+
+! Ports vers les PC/hôtes finaux → port-security
+interface range Ethernet0/0 - <X>
+ switchport mode access
+ duplex full
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security mac-address sticky
+ switchport port-security violation shutdown
+ exit
+
+! Ports vers les routeurs → PAS de port-security, juste duplex + access
+interface range Ethernet0/<X+1> - <Y>
+ switchport mode access
+ duplex full
+ exit
+
+ip dhcp snooping
+ip dhcp snooping vlan 1
+
+! Port trusted = celui vers le routeur qui fait office de DHCP/gateway légitime
+interface Ethernet0/<PORT_VERS_ROUTEUR>
+ ip dhcp snooping trust
+ exit
+
+! Tous les autres ports = untrusted avec rate limit
+interface range Ethernet0/0 - <X>
+ ip dhcp snooping limit rate 10
+ exit
+
+end
+write memory
+5. Checklist anti-galère (dans l'ordre, avant même de brancher un câble)
+Compte les interfaces nécessaires par routeur dans les propriétés PNetLab AVANT de démarrer le nœud (1 carte = juste OSPF, 2 cartes = OSPF + NAT/Internet)
+Démarre tout, puis fais show ip interface brief sur CHAQUE équipement pour noter les vrais noms d'interfaces avant de coller le moindre script
+Colle la config routeur par routeur, en vérifiant show ip ospf neighbor après chaque nouveau routeur ajouté — ne jamais tout coller d'un coup sur 5 équipements sans vérifier entre chaque
+Sur le switch, force duplex full sur TOUS les ports dès le début — évite tous les %CDP-4-DUPLEX_MISMATCH qu'on a eus
+Ne mets le port-security QUE sur les ports vers des PC/hôtes finaux, jamais sur les ports vers d'autres routeurs/switchs
+Si tu dois un jour faire un write erase + reload sur un switch qui a du port-security sticky : réponds no à Save configuration?, sinon l'ancienne config (et ses vieilles MAC parasites) revient au boot
+Teste la connectivité de proche en proche (ping du voisin direct avant de tester loin) plutôt que de tout configurer puis tout tester d'un coup
+6. Ce qui NE change PAS peu importe la taille du lab
+La logique ACL (ADMIN-ONLY, INVITES-WEB-ONLY, TOUT-INTERNE) reste identique — elle vit sur le routeur "frontière" (celui avec l'accès Internet), pas besoin de la dupliquer sur chaque routeur
+Le NAT (statique + PAT overload) reste sur ce même routeur frontière uniquement
+Un seul DR et un seul BDR par segment/zone OSPF, peu importe combien de routeurs y participent
